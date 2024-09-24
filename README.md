@@ -102,7 +102,7 @@ Retail_Product_Detection/
 │ ├── product_detection.py
 │ ├── product_grouping.py
 │ └── templates/
-│ └── index.html
+│  └── index.html
 │
 ├── model/
 │ ├── train_yolo.py
