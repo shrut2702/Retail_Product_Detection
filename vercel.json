@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "functions": {
+    "AI Pipeline/image_processing_serv.py": {
+      "maxDuration": 60
+    }
+  },
   "builds": [
     {
       "src": "AI Pipeline/image_processing_serv.py",
