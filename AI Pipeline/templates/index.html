@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js"></script>
     <title>Retail Product Detection</title>
     <style>
       .container {
@@ -229,7 +230,17 @@
           method: "POST",
           body: formData,
         })
-          .then((response) => response.json())
+          .then((response) => {
+            const contentEncoding = response.headers.get("Content-Encoding");
+            if (contentEncoding === "gzip") {
+              return response.arrayBuffer().then((buffer) => {
+                const decompressed = new Uint8Array(new Uint8Array(buffer));
+                return new Response(decompressed).json();
+              });
+            } else {
+              return response.json();
+            }
+          })
           .then((data) => {
             removeImage();
             displayOutputImage(data["image"]);
