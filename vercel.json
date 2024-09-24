@@ -1,0 +1,15 @@
+{
+  "version": 1.0,
+  "builds": [
+    {
+      "src": "AI Pipeline/image_processing_serv.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "AI Pipeline/image_processing_serv.py"
+    }
+  ]
+}
