@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Retail Product Detection</title>
+    <style>
+      .container {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+      }
+
+      .drop-zone {
+        width: 300px;
+        height: 200px;
+        border: 2px dashed #cccccc;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 20px auto;
+        font-size: 16px;
+        color: #999999;
+        cursor: pointer;
+      }
+
+      .drop-zone.dragover {
+        background-color: #f0f0f0;
+      }
+
+      .button-container {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        margin: 10px 0px;
+      }
+
+      .remove-button {
+        display: block;
+        margin: 10px 10px;
+        padding: 10px 20px;
+        background-color: #8e2020;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      .remove-button:hover {
+        background-color: #8e2020cc;
+      }
+
+      .upload-button {
+        display: block;
+        margin: 10px 10px;
+        padding: 10px 20px;
+        background-color: #1bb250;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      .upload-button:hover {
+        background-color: #1bb250cc;
+      }
+
+      .image-preview {
+        width: 500px;
+        margin: 20px auto;
+        text-align: center;
+      }
+
+      .image-preview img {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .chart {
+        width: 70%;
+        height: auto;
+      }
+
+      #barChart {
+        display: block;
+        width: 100%;
+        height: 400px;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      #loading {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        color: #ffffff;
+        border-radius: 5px;
+        font-size: 1.5em;
+        z-index: 1000; /* Ensure it is above other content */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Upload an Image</h1>
+
+      <div id="dropZone" class="drop-zone">Drag & Drop an image here</div>
+
+      <div class="file-input">
+        <input type="file" id="fileInput" accept="image/*" />
+      </div>
+
+      <div class="button-container">
+        <button class="remove-button" onclick="removeImage()">Remove</button>
+        <button class="upload-button" onclick="uploadImage()">Upload</button>
+      </div>
+
+      <div id="loading" class="hidden">Detecting...</div>
+
+      <div id="imagePreview" class="image-preview"></div>
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <br />
+      <div class="chart">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+
+    <script>
+      const dropZone = document.getElementById("dropZone");
+      const imagePreview = document.getElementById("imagePreview");
+      const fileInput = document.getElementById("fileInput");
+      const ctx = document.getElementById("barChart").getContext("2d");
+      const loadingElement = document.getElementById("loading");
+      let barChart;
+      let selectedFile = "";
+
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+      });
+
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      ["dragenter", "dragover"].forEach((eventName) => {
+        dropZone.classList.add("dragover");
+      });
+
+      ["dragleave", "drop"].forEach((eventName) => {
+        dropZone.classList.remove("dragover");
+      });
+
+      dropZone.addEventListener("drop", handleDrop, false);
+
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+
+        if (files.length && files[0].type.startsWith("image/")) {
+          selectedFile = files[0];
+          displayImage(files[0]);
+        } else {
+          alert("Please drop an image file.");
+        }
+      }
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+
+        if (file && file.type.startsWith("image/")) {
+          selectedFile = file;
+          displayImage(file);
+        } else {
+          alert("Please select an image file.");
+        }
+      });
+
+      function displayImage(file) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+          const img = document.createElement("img");
+          img.src = reader.result;
+          imagePreview.innerHTML = "";
+          imagePreview.appendChild(img);
+        };
+      }
+
+      function displayOutputImage(base64_image) {
+        const img = document.createElement("img");
+        img.src = `data:image/jpeg;base64,${base64_image}`;
+        imagePreview.innerHTML = "";
+        imagePreview.appendChild(img);
+      }
+
+      function removeImage() {
+        if (!selectedFile) {
+          alert("No image to remove.");
+          return;
+        }
+
+        selectedFile = "";
+        imagePreview.innerHTML = "";
+        fileInput.value = "";
+      }
+
+      function uploadImage() {
+        if (!selectedFile) {
+          alert("No image selected.");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", selectedFile);
+
+        loadingElement.classList.remove("hidden");
+
+        fetch("/upload-image", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            removeImage();
+            displayOutputImage(data["image"]);
+            alert("Product Detection Successful!");
+            console.log(data);
+            loadingElement.classList.add("hidden");
+            if (barChart) {
+              barChart.destroy();
+            }
+            barChart = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: data["labels"],
+                datasets: [
+                  {
+                    label: "Number of Products",
+                    data: data["counts"],
+                    backgroundColor: [
+                      "rgba(255, 99, 132, 0.2)",
+                      "rgba(255, 159, 64, 0.2)",
+                      "rgba(255, 205, 86, 0.2)",
+                      "rgba(75, 192, 192, 0.2)",
+                      "rgba(54, 162, 235, 0.2)",
+                      "rgba(153, 102, 255, 0.2)",
+                    ],
+                    borderColor: [
+                      "rgb(255, 99, 132)",
+                      "rgb(255, 159, 64)",
+                      "rgb(255, 205, 86)",
+                      "rgb(75, 192, 192)",
+                      "rgb(54, 162, 235)",
+                      "rgb(153, 102, 255)",
+                    ],
+                    borderWidth: 1,
+                  },
+                ],
+              },
+              options: {
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                  },
+                },
+              },
+            });
+          })
+          .catch((error) => {
+            imagePreview.innerHTML = "";
+            removeImage();
+            alert(error);
+            console.error(error);
+          });
+      }
+    </script>
+  </body>
+</html>
