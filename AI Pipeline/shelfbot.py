@@ -6,10 +6,8 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from .env
 load_dotenv()
 
-# Flask app setup
 app = Flask(__name__)
 CORS(app)
 
