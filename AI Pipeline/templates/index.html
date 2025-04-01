@@ -5,214 +5,419 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js"></script>
-    <title>Retail Product Detection</title>
+    <title>RetailVision | Product Detection</title>
     <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Poppins", sans-serif;
+        background: #f9fbfc;
+        color: #333;
+      }
+
+      header {
+        background: linear-gradient(135deg, #00b894, #00cec9);
+        color: white;
+        padding: 40px 20px;
+        text-align: center;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 2.5em;
+        letter-spacing: 1px;
+      }
+
+      header p {
+        margin-top: 10px;
+        font-size: 1.1em;
+        color: #eaf9f8;
+      }
+
       .container {
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: center;
+        max-width: 1100px;
+        margin: 40px auto;
+        padding: 0 20px;
+        min-height: 100vh;
+      }
+
+      .upload-section,
+      .preview-section,
+      .chart {
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.05);
+        padding: 30px;
+        margin-bottom: 30px;
+      }
+
+      .upload-section h2,
+      .chart h2 {
+        font-size: 1.6em;
+        color: #2d3436;
+        position: relative;
+        display: inline-block;
+        padding-bottom: 6px;
+        border-bottom: 3px solid #00b894;
+        margin-bottom: 20px;
       }
 
       .drop-zone {
-        width: 300px;
-        height: 200px;
-        border: 2px dashed #cccccc;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin: 20px auto;
-        font-size: 16px;
-        color: #999999;
+        border: 2px dashed #bbb;
+        padding: 30px;
+        text-align: center;
+        color: #888;
         cursor: pointer;
+        border-radius: 12px;
+        transition: background-color 0.3s;
+        background-color: #fafafa;
       }
 
       .drop-zone.dragover {
-        background-color: #f0f0f0;
+        background-color: #e8f6f3;
       }
 
       .button-container {
         display: flex;
-        flex-direction: row;
         justify-content: center;
-        align-items: center;
-        margin: 10px 0px;
+        gap: 15px;
+        margin-top: 20px;
       }
 
-      .remove-button {
-        display: block;
-        margin: 10px 10px;
+      button {
         padding: 10px 20px;
-        background-color: #8e2020;
-        color: white;
+        font-weight: 600;
         border: none;
+        border-radius: 8px;
         cursor: pointer;
-      }
-
-      .remove-button:hover {
-        background-color: #8e2020cc;
+        transition: background 0.3s ease;
       }
 
       .upload-button {
-        display: block;
-        margin: 10px 10px;
-        padding: 10px 20px;
-        background-color: #1bb250;
+        background-color: #0984e3;
         color: white;
-        border: none;
-        cursor: pointer;
       }
 
       .upload-button:hover {
-        background-color: #1bb250cc;
+        background-color: #74b9ff;
       }
 
-      .image-preview {
-        width: 500px;
-        margin: 20px auto;
+      .remove-button {
+        background-color: #d63031;
+        color: white;
+      }
+
+      .remove-button:hover {
+        background-color: #ff7675;
+      }
+
+      input[type="file"] {
+        display: block;
+        margin: 20px auto 10px;
+        font-size: 1em;
+      }
+
+      .preview-section {
+        display: none;
+        justify-content: space-around;
+        gap: 30px;
+        flex-wrap: wrap;
         text-align: center;
       }
 
-      .image-preview img {
-        max-width: 100%;
-        height: auto;
+      .image-box {
+        flex: 1;
+        min-width: 280px;
+      }
+
+      .image-box img {
+        width: 100%;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        margin-top: 10px;
+        cursor: zoom-in;
+      }
+
+      .image-box h3 {
+        margin-top: 0;
+        font-size: 1.2em;
+        color: #444;
       }
 
       .chart {
-        width: 70%;
-        height: auto;
-      }
-
-      #barChart {
-        display: block;
-        width: 100%;
-        height: 400px;
-      }
-
-      .hidden {
         display: none;
+      }
+
+      .chart canvas {
+        width: 100% !important;
+      }
+
+      .summary-button-container {
+        display: flex;
+        justify-content: end;
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .summary-button {
+        background-color: #0984e3;
+        color: white;
+      }
+
+      .summary-button:hover {
+        background-color: #74b9ff;
       }
 
       #loading {
         position: fixed;
         top: 50%;
         left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: #fff;
+        padding: 20px 40px;
+        border-radius: 10px;
+        font-size: 1.3em;
+        z-index: 1000;
+        display: none;
+      }
+
+      /* Full Image Modal */
+      #imageModal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.85);
+      }
+
+      #modalImage {
+        margin: 5% auto;
+        display: block;
+        max-width: 90%;
+        max-height: 80vh;
+        box-shadow: 0 0 10px #000;
+      }
+
+      #closeModal {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        font-size: 2em;
+        color: white;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .spinner {
+        border: 6px solid #ffffff;
+        border-top: 6px solid #00b894;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      footer {
+        text-align: center;
         padding: 20px;
-        background: rgba(0, 0, 0, 0.7);
-        color: #ffffff;
-        border-radius: 5px;
-        font-size: 1.5em;
-        z-index: 1000; /* Ensure it is above other content */
+        font-size: 0.9em;
+        background: #f1f1f1;
+        color: #888;
+      }
+
+      footer span {
+        color: #00b894;
       }
     </style>
   </head>
   <body>
+    <header>
+      <h1>RetailVision</h1>
+      <p>AI-powered Retail Product Detection from Images</p>
+    </header>
+
     <div class="container">
-      <h1>Upload an Image</h1>
-
-      <div id="dropZone" class="drop-zone">Drag & Drop an image here</div>
-
-      <div class="file-input">
+      <div class="upload-section">
+        <h2>Upload Product Shelf Image</h2>
+        <div id="dropZone" class="drop-zone">📷 Drag & Drop an image here</div>
         <input type="file" id="fileInput" accept="image/*" />
+        <div class="button-container">
+          <button class="remove-button" onclick="removeImage()">Remove</button>
+          <button class="upload-button" onclick="uploadImage()">Upload</button>
+        </div>
       </div>
 
-      <div class="button-container">
-        <button class="remove-button" onclick="removeImage()">Remove</button>
-        <button class="upload-button" onclick="uploadImage()">Upload</button>
+      <div id="loading">🔍 Detecting Products...</div>
+
+      <div class="preview-section">
+        <div class="image-box">
+          <h3>Uploaded Image</h3>
+          <div id="uploadedImage"></div>
+        </div>
+        <div class="image-box">
+          <h3>Detected Products</h3>
+          <div id="outputImage"></div>
+        </div>
       </div>
 
-      <div id="loading" class="hidden">Detecting...</div>
-
-      <div id="imagePreview" class="image-preview"></div>
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
-      <br />
       <div class="chart">
+        <h2>Product Count Summary</h2>
         <canvas id="barChart"></canvas>
+        <div
+          id="summarySpinner"
+          style="display: none; text-align: center; margin-top: 20px"
+        >
+          <div class="spinner"></div>
+        </div>
+        <div
+          id="aiSummaryBox"
+          style="
+            display: none;
+            padding: 20px;
+            background: #eafaf6;
+            border-left: 5px solid #00b894;
+            margin-top: 20px;
+            border-radius: 8px;
+          "
+        >
+          <h3>🧠 AI Shelf Summary</h3>
+          <p id="aiSummaryText" style="margin: 0; font-weight: 500"></p>
+        </div>
+        <div class="summary-button-container">
+          <button class="summary-button" onclick="generateAISummary()">
+            Generate AI Summary
+          </button>
+        </div>
       </div>
+    </div>
+
+    <footer>© 2025 <span>RetailVision</span>. All rights reserved.</footer>
+
+    <div id="imageModal">
+      <span id="closeModal">&times;</span>
+      <img id="modalImage" src="" alt="Full View" />
     </div>
 
     <script>
       const dropZone = document.getElementById("dropZone");
-      const imagePreview = document.getElementById("imagePreview");
       const fileInput = document.getElementById("fileInput");
-      const ctx = document.getElementById("barChart").getContext("2d");
+      const uploadedImage = document.getElementById("uploadedImage");
+      const outputImage = document.getElementById("outputImage");
       const loadingElement = document.getElementById("loading");
-      let barChart;
-      let selectedFile = "";
+      const previewSection = document.querySelector(".preview-section");
+      const chartSection = document.querySelector(".chart");
+      const ctx = document.getElementById("barChart").getContext("2d");
 
-      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-      });
+      const modal = document.getElementById("imageModal");
+      const modalImg = document.getElementById("modalImage");
+      const closeModal = document.getElementById("closeModal");
+
+      const summaryBox = document.getElementById("aiSummaryBox");
+      const summaryText = document.getElementById("aiSummaryText");
+      const spinner = document.getElementById("summarySpinner");
+
+      let selectedFile = null;
+      let barChart = null;
+
+      ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) =>
+        dropZone.addEventListener(eventName, preventDefaults, false)
+      );
 
       function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
       }
 
-      ["dragenter", "dragover"].forEach((eventName) => {
-        dropZone.classList.add("dragover");
-      });
-
-      ["dragleave", "drop"].forEach((eventName) => {
-        dropZone.classList.remove("dragover");
-      });
-
+      dropZone.addEventListener("dragover", () =>
+        dropZone.classList.add("dragover")
+      );
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("dragover")
+      );
       dropZone.addEventListener("drop", handleDrop, false);
 
       function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-
-        if (files.length && files[0].type.startsWith("image/")) {
-          selectedFile = files[0];
-          displayImage(files[0]);
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+          selectedFile = file;
+          displayUploadedImage(file);
         } else {
-          alert("Please drop an image file.");
+          alert("Please drop a valid image file.");
         }
       }
 
       fileInput.addEventListener("change", (e) => {
         const file = e.target.files[0];
-
         if (file && file.type.startsWith("image/")) {
           selectedFile = file;
-          displayImage(file);
+          displayUploadedImage(file);
         } else {
-          alert("Please select an image file.");
+          alert("Please select a valid image file.");
         }
       });
 
-      function displayImage(file) {
+      function displayUploadedImage(file) {
         const reader = new FileReader();
-        reader.readAsDataURL(file);
         reader.onloadend = () => {
-          const img = document.createElement("img");
-          img.src = reader.result;
-          imagePreview.innerHTML = "";
-          imagePreview.appendChild(img);
+          uploadedImage.innerHTML = `<img id="uploadedImg" src="${reader.result}" alt="Uploaded Image" />`;
+          enableImageClickZoom(document.getElementById("uploadedImg"));
         };
+        reader.readAsDataURL(file);
       }
 
-      function displayOutputImage(base64_image) {
-        const img = document.createElement("img");
-        img.src = `data:image/jpeg;base64,${base64_image}`;
-        imagePreview.innerHTML = "";
-        imagePreview.appendChild(img);
+      function displayOutputImage(base64Image) {
+        outputImage.innerHTML = `<img id="outputImg" src="data:image/jpeg;base64,${base64Image}" alt="Detected Output" />`;
+        enableImageClickZoom(document.getElementById("outputImg"));
       }
+
+      function enableImageClickZoom(imgElement) {
+        imgElement.addEventListener("click", () => {
+          modal.style.display = "block";
+          modalImg.src = imgElement.src;
+        });
+      }
+
+      closeModal.onclick = () => {
+        modal.style.display = "none";
+      };
+
+      window.onclick = function (e) {
+        if (e.target == modal) {
+          modal.style.display = "none";
+        }
+      };
 
       function removeImage() {
-        if (!selectedFile) {
-          alert("No image to remove.");
-          return;
-        }
-
-        selectedFile = "";
-        imagePreview.innerHTML = "";
+        selectedFile = null;
+        uploadedImage.innerHTML = "";
+        outputImage.innerHTML = "";
         fileInput.value = "";
+        if (barChart) barChart.destroy();
+        previewSection.style.display = "none";
+        chartSection.style.display = "none";
+        summaryText.textContent = "";
+        summaryBox.style.display = "none";
       }
 
       function uploadImage() {
@@ -223,75 +428,84 @@
 
         const formData = new FormData();
         formData.append("image", selectedFile);
-
-        loadingElement.classList.remove("hidden");
+        loadingElement.style.display = "block";
 
         fetch("/upload-image", {
           method: "POST",
           body: formData,
         })
-          .then((response) => {
-            const contentEncoding = response.headers.get("Content-Encoding");
-            if (contentEncoding === "gzip") {
-              return response.arrayBuffer().then((buffer) => {
-                const decompressed = new Uint8Array(new Uint8Array(buffer));
-                return new Response(decompressed).json();
-              });
-            } else {
-              return response.json();
-            }
-          })
+          .then((res) => res.json())
           .then((data) => {
-            removeImage();
-            displayOutputImage(data["image"]);
-            alert("Product Detection Successful!");
-            console.log(data);
-            loadingElement.classList.add("hidden");
-            if (barChart) {
-              barChart.destroy();
-            }
-            barChart = new Chart(ctx, {
-              type: "bar",
-              data: {
-                labels: data["labels"],
-                datasets: [
-                  {
-                    label: "Number of Products",
-                    data: data["counts"],
-                    backgroundColor: [
-                      "rgba(255, 99, 132, 0.2)",
-                      "rgba(255, 159, 64, 0.2)",
-                      "rgba(255, 205, 86, 0.2)",
-                      "rgba(75, 192, 192, 0.2)",
-                      "rgba(54, 162, 235, 0.2)",
-                      "rgba(153, 102, 255, 0.2)",
-                    ],
-                    borderColor: [
-                      "rgb(255, 99, 132)",
-                      "rgb(255, 159, 64)",
-                      "rgb(255, 205, 86)",
-                      "rgb(75, 192, 192)",
-                      "rgb(54, 162, 235)",
-                      "rgb(153, 102, 255)",
-                    ],
-                    borderWidth: 1,
-                  },
-                ],
-              },
-              options: {
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                  },
-                },
-              },
-            });
+            displayOutputImage(data.image);
+            renderChart(data.labels, data.counts);
+            previewSection.style.display = "flex";
+            chartSection.style.display = "block";
+            loadingElement.style.display = "none";
           })
-          .catch((error) => {
-            imagePreview.innerHTML = "";
-            removeImage();
-            alert(error);
-            console.error(error);
+          .catch((err) => {
+            alert("Error processing image.");
+            console.error(err);
+            loadingElement.style.display = "none";
+          });
+      }
+
+      function renderChart(labels, counts) {
+        if (barChart) barChart.destroy();
+        barChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Detected Products",
+                data: counts,
+                backgroundColor: "#00cec9",
+                borderColor: "#00b894",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      function generateAISummary() {
+        if (!barChart || !barChart.data) {
+          alert("No chart data to summarize.");
+          return;
+        }
+
+        const payload = {
+          labels: barChart.data.labels,
+          counts: barChart.data.datasets[0].data,
+        };
+
+        spinner.style.display = "block"; // Show spinner
+        summaryBox.style.display = "none"; // Hide summary
+
+        fetch("http://localhost:5003/ai-shelf-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            summaryText.textContent = data.summary;
+            summaryBox.style.display = "block";
+          })
+          .catch((err) => {
+            console.error("AI Summary Error:", err);
+            alert("Failed to generate AI summary.");
+          })
+          .finally(() => {
+            spinner.style.display = "none"; // Hide spinner
           });
       }
     </script>
